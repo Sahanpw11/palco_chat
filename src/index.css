@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-heading: 'Fraunces', serif;
+  --font-body: 'Outfit', sans-serif;
+
+  /* Botanical Mist Palette */
+  --color-bg: #FFFFFF;
+  --color-surface: #FDFDFD;
+
+  --color-text-primary: #2D3436;
+  --color-text-secondary: #636E72;
+  --color-text-muted: #B2BEC3;
+
+  --color-accent-purple: #E3DCF7;
+  /* Soft Lavender */
+  --color-accent-green: #D4F2D2;
+  /* Pale Mint */
+
+  --color-action: #6C5CE7;
+  /* Deep Violet */
+  --color-action-hover: #5649C0;
+
+  --shadow-soft: 0 10px 40px -10px rgba(108, 92, 231, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-image:
+    radial-gradient(circle at 10% 20%, var(--color-accent-purple) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, var(--color-accent-green) 0%, transparent 40%);
+  background-attachment: fixed;
+}
+
+#root {
+  width: 100%;
+  max-width: 800px;
+  height: 100vh;
+  max-height: 900px;
+  background: transparent;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 640px) {
+  #root {
+    height: 90vh;
+    border-radius: var(--radius-lg);
+    margin: 2rem;
+  }
+}
+
+/* Utilities */
+.fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+    filter: blur(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes liquid {
+  0% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+    background-position: 0% 50%;
+  }
+
+  50% {
+    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+    background-position: 100% 50%;
+  }
+
+  100% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-liquid {
+  animation: liquid 8s ease-in-out infinite, float 6s ease-in-out infinite;
+  background-size: 200% 200%;
+}
