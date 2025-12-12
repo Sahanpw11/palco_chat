@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, Activity } from 'lucide-react';
+import { ArrowRight, Activity, Volume2, Square } from 'lucide-react';
 
 interface FocusViewProps {
     messages: { text: string; sender: 'user' | 'ai'; isJsonSummary?: boolean }[];
@@ -36,6 +36,57 @@ const FocusView: React.FC<FocusViewProps> = ({ messages, onSend, isLoading, show
     const feelingOptions = ["Anxious 😰", "Overwhelmed 🤯", "Sad 😢", "Tired 😴", "Angry 😠", "Confused 😕", "Okay 😐", "Hopeful 🙂"];
 
     const recognitionRef = React.useRef<any>(null);
+    const [isSpeaking, setIsSpeaking] = useState(false);
+
+    const speakText = (text: string) => {
+        if ('speechSynthesis' in window) {
+            // Cancel any current speaking
+            window.speechSynthesis.cancel();
+
+            if (isSpeaking) {
+                setIsSpeaking(false);
+                return;
+            }
+
+            // Sanitize text: remove markdown images, links (keep text), formatting chars, and emojis
+            const cleanText = text
+                .replace(/!\[.*?\]\(.*?\)/g, '') // Remove images completely
+                .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Keep link text, remove URL
+                .replace(/[*_`~]/g, '') // Remove formatting characters
+                .replace(/#+\s/g, '') // Remove header markers
+                .replace(/[\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F1E0}-\u{1F1FF}]/gu, '') // Remove emojis
+                .trim();
+
+            if (!cleanText) return;
+
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.onend = () => setIsSpeaking(false);
+            utterance.onerror = () => setIsSpeaking(false);
+
+            // Optional: Select a better voice if available
+            // const voices = window.speechSynthesis.getVoices();
+            // utterance.voice = voices.find(v => v.lang.includes('en')) || null;
+
+            setIsSpeaking(true);
+            window.speechSynthesis.speak(utterance);
+        } else {
+            alert("Text-to-speech is not supported in this browser.");
+        }
+    };
+
+    // Auto-speak new messages (optional, enabled by default for "complete" feel)
+    React.useEffect(() => {
+        // Only speak if it's a new AI message and we are not already listening/speaking
+        // This is a bit aggressive, maybe just a manual button is safer.
+        // Let's stick to manual first as per "add a voice to the questions" (implies ability to do so).
+        // Actually, "make it complete" suggests parity with input.
+        // Let's rely on the button for now to avoid annoying the user with auto-play issues.
+
+        // However, we shoudl cancel speech if the component unmounts or message changes
+        return () => {
+            window.speechSynthesis.cancel();
+        };
+    }, [messageText]);
 
     const toggleVoiceInput = () => {
         if (isListening) {
@@ -45,6 +96,12 @@ const FocusView: React.FC<FocusViewProps> = ({ messages, onSend, isLoading, show
             }
             // setIsListening(false); // Let onend handle this to keep UI active while processing
             return;
+        }
+
+        // Stop speaking if we start listening
+        if (isSpeaking) {
+            window.speechSynthesis.cancel();
+            setIsSpeaking(false);
         }
 
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -147,8 +204,15 @@ const FocusView: React.FC<FocusViewProps> = ({ messages, onSend, isLoading, show
             ) : (
                 <div className="w-full flex flex-col gap-12 fade-in">
                     {/* Question */}
-                    <h2 className="text-3xl md:text-4xl font-[family-name:var(--font-heading)] text-[--color-text-primary] text-center leading-tight">
+                    <h2 className="text-3xl md:text-4xl font-[family-name:var(--font-heading)] text-[--color-text-primary] text-center leading-tight flex items-center justify-center gap-4">
                         <MessageContent text={messageText} />
+                        <button
+                            onClick={() => speakText(messageText)}
+                            className="p-2 rounded-full bg-[--color-surface] text-[--color-text-secondary] hover:text-[--color-action] hover:bg-white transition-all shadow-sm"
+                            title={isSpeaking ? "Stop Speaking" : "Read Aloud"}
+                        >
+                            {isSpeaking ? <Square size={20} className="fill-current" /> : <Volume2 size={24} />}
+                        </button>
                     </h2>
 
                     {/* DYNAMIC INPUTS */}
