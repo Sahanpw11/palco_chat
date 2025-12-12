@@ -10,6 +10,7 @@ interface FocusViewProps {
 
 const FocusView: React.FC<FocusViewProps> = ({ messages, onSend, isLoading, showSlider }) => {
     const [input, setInput] = useState('');
+    const [isListening, setIsListening] = useState(false);
 
     // Get the latest AI message
     const lastAiMessage = [...messages].reverse().find(m => m.sender === 'ai');
@@ -32,6 +33,47 @@ const FocusView: React.FC<FocusViewProps> = ({ messages, onSend, isLoading, show
 
     // Mental Health "Feeling" Options
     const feelingOptions = ["Anxious 😰", "Overwhelmed 🤯", "Sad 😢", "Tired 😴", "Angry 😠", "Confused 😕", "Okay 😐", "Hopeful 🙂"];
+
+    const handleVoiceInput = () => {
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                setIsListening(true);
+            };
+
+            recognition.onresult = (event: any) => {
+                const transcript = event.results[0][0].transcript;
+                setInput((prev) => prev + (prev ? ' ' : '') + transcript);
+                setIsListening(false);
+            };
+
+            recognition.onerror = (event: any) => {
+                console.error('Speech recognition error', event.error);
+                if (event.error === 'network') {
+                    alert('Voice input failed. This often happens if:\n1. The browser blocks Google Speech services (e.g. Brave/Vivaldi).\n2. A firewall/extension is blocking the connection.\n3. The internet connection is unstable.');
+                } else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    alert('Microphone access blocked. Please allow microphone permissions.');
+                } else {
+                    alert(`Voice input error: ${event.error}`);
+                }
+                setIsListening(false);
+            };
+
+            recognition.onend = () => {
+                setIsListening(false);
+            };
+
+            recognition.start();
+        } else {
+            alert("Your browser does not support voice input.");
+        }
+    };
 
     // Render content
     return (
@@ -139,16 +181,31 @@ const FocusView: React.FC<FocusViewProps> = ({ messages, onSend, isLoading, show
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder="Type your answer..."
-                                className="w-full bg-transparent border-b-2 border-[--color-accent-purple] text-2xl py-4 px-2 focus:outline-none focus:border-[--color-action] transition-colors font-[family-name:var(--font-body)] text-[--color-text-primary] placeholder:text-[--color-text-muted]"
+                                className="w-full bg-transparent border-b-2 border-[--color-accent-purple] text-2xl py-4 px-2 pr-24 focus:outline-none focus:border-[--color-action] transition-colors font-[family-name:var(--font-body)] text-[--color-text-primary] placeholder:text-[--color-text-muted]"
                             />
 
-                            <button
-                                type="submit"
-                                disabled={!input.trim()}
-                                className="absolute right-0 bottom-4 md:bottom-2 bg-[--color-action] text-white p-4 rounded-2xl hover:bg-[--color-action-hover] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[--color-action]/30 hover:scale-105 active:scale-95"
-                            >
-                                <ArrowRight size={24} />
-                            </button>
+                            <div className="absolute right-0 bottom-4 md:bottom-2 flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleVoiceInput}
+                                    disabled={isLoading || isListening}
+                                    className={`p-4 rounded-2xl transition-all shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center ${isListening
+                                        ? 'bg-red-500 text-white animate-pulse shadow-red-500/30'
+                                        : 'bg-white text-slate-400 hover:text-[--color-primary] border border-slate-200'
+                                        }`}
+                                    title="Voice Input"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="23" /><line x1="8" x2="16" y1="23" y2="23" /></svg>
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    disabled={!input.trim()}
+                                    className="bg-[--color-action] text-white p-4 rounded-2xl hover:bg-[--color-action-hover] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[--color-action]/30 hover:scale-105 active:scale-95"
+                                >
+                                    <ArrowRight size={24} />
+                                </button>
+                            </div>
                         </form>
                     )}
                 </div>
