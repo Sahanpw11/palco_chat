@@ -1,19 +1,19 @@
- # Intelligent Multi-Agent Triage Workflow
+# Intelligent Multi-Agent Triage Architecture
 
-This document outlines the architecture for the **AI Health Assistant's** multi-agent system. The core design philosophy is **"Specialized Isolation"**—ensuring that agents only access the data and logic relevant to their specific domain.
+This document outlines the architectural design for the **AI Health Assistant's** multi-agent system. The core design philosophy is **"Specialized Isolation"**, ensuring that agents only access data and logic relevant to their specific domain.
 
 ## 1. System Overview
 
 We utilize a **Hub-and-Spoke** model where a central *Triage Agent* acts as the gatekeeper, analyzing user intent and routing them to a specialized *Domain Agent*.
 
-### The "Big Database" Concept
-While the system rests on a massive, comprehensive database of health practitioners (Physios, Psychologists, OTs, etc.), **no single agent scans the entire database at once.** This improves efficiency, privacy, and accuracy.
+### Database Architecture
+While the system rests on a comprehensive database of health practitioners (Physiotherapists, Psychologists, Occupational Therapists, etc.), **no single agent scans the entire database concurrently.** This architecture enhances efficiency, privacy, and accuracy.
 
 ## 2. Agent Workflow
 
 ```mermaid
 graph TD
-    User[👤 Patient] -->|Input: 'I have lower back pain'| Triage[🧠 Triage AI]
+    User[Patient] -->|Input: 'I have lower back pain'| Triage[Triage AI]
     
     subgraph "Routing Layer"
     Triage -->|Classifies as PHYSICAL| PhysioAgent
@@ -23,9 +23,9 @@ graph TD
     
     subgraph "Specialized Agents (Isolated Data Access)"
     
-    PhysioAgent[🦴 Physical Agent]
-    PsychAgent[🧠 Mental Health Agent]
-    NDISAgent[♿ NDIS Support Agent]
+    PhysioAgent[Physical Agent]
+    PsychAgent[Mental Health Agent]
+    NDISAgent[NDIS Support Agent]
     
     PhysioAgent -.->|Read Access Only| DB_Physio[(Physical Therapy DB\n& Pain Protocols)]
     PsychAgent -.->|Read Access Only| DB_Psych[(Psychology DB\n& Crisis Resources)]
@@ -36,66 +36,66 @@ graph TD
     PsychAgent -->|Asks: Feelings, Duration| User
     NDISAgent -->|Asks: Plan Status| User
     
-    PhysioAgent -->|Match Found| Result[✅ Recommended Specialist]
+    PhysioAgent -->|Match Found| Result[Recommended Specialist]
 ```
 
 ## 3. Agent Roles & Data Isolation
 
-### 🧠 Triage Agent (The Gatekeeper)
-- **Role**: Purely linguistic analysis. It does *not* look at practitioner data.
-- **Task**: Listens to the user's opening statement and determines the `DOMAIN`.
+### Triage Agent (The Gatekeeper)
+- **Role**: Purely linguistic analysis. It does *not* query practitioner data.
+- **Task**: Analyzes the user's initial statement to determine the `DOMAIN`.
 - **Output**: Activates *one* of the sub-agents.
 
-### 🦴 Physical Agent (Manual Therapy Specialist)
+### Physical Agent (Manual Therapy Specialist)
 - **Trigger**: User mentions pain, injury, stiffness, or mobility issues.
 - **Workflow**:
-  1. **Inquiry**: Asks about pain location, severity (1-5 Scale), and duration.
-  2. **Data Slice**: access is restricted to **Physiotherapists, Osteopaths, and Chiropractors**.
-  3. **Logic**: Ignores mental health keywords; focuses on physical symptoms.
+  1. **Inquiry**: Queries pain location, severity (1-5 Scale), and duration.
+  2. **Data Scope**: Access is restricted to **Physiotherapists, Osteopaths, and Chiropractors**.
+  3. **Logic**: Ignores mental health keywords; focuses on physical symptoms and functional limitations.
 
-### 🧠 Mental Health Agent (Emotional Support Specialist)
+### Mental Health Agent (Emotional Support Specialist)
 - **Trigger**: User mentions anxiety, stress, sadness, or burnout.
 - **Workflow**:
-  1. **Inquiry**: Asks for qualitative feelings (Chips: Anxious, Sad) and triggers.
-  2. **Data Slice**: access is restricted to **Clinical Psychologists, Counsellors, and Psychiatrists**.
-  3. **Logic**: Prioritizes empathy and crisis check protocols.
+  1. **Inquiry**: Queries qualitative feelings (e.g., Anxious, Sad) and identifying triggers.
+  2. **Data Scope**: Access is restricted to **Clinical Psychologists, Counsellors, and Psychiatrists**.
+  3. **Logic**: Prioritizes empathetic response patterns and crisis check protocols.
 
-### ♿ NDIS Agent (Disability & Funding Specialist)
-- **Trigger**: User mentions disability support, funding, or long-term care.
+### NDIS Agent (Disability & Funding Specialist)
+- **Trigger**: User mentions disability support, funding, or long-term care requirements.
 - **Workflow**:
-  1. **Inquiry**: Asks about NDIS plan status (Managed/Self-Managed) and support goals.
-  2. **Data Slice**: access is restricted to **Occupational Therapists and NDIS-registered providers**.
-  3. **Logic**: Focuses on capacity building and funding alignment.
+  1. **Inquiry**: Queries NDIS plan status (Managed/Self-Managed) and support goals.
+  2. **Data Scope**: Access is restricted to **Occupational Therapists and NDIS-registered providers**.
+  3. **Logic**: Focuses on capacity building, funding alignment, and provider eligibility.
 
 ## 4. Safety & Accuracy: Preventing Misguidance
 
-One of the biggest risks in AI health assistants is **"Hallucination"** (recommending the wrong type of doctor). This architecture strictly prevents that through **Scope Limitation**.
+A critical risk in AI health assistants is "Hallucination" (recommending an inappropriate specialist). This architecture strictly mitigates that risk through **Scope Limitation**.
 
-### How We Block Wrong Recommendations
-Because the `Physical Agent` literally *cannot see* the Mental Health database, it is chemically impossible for it to recommend a Psychologist for a broken leg.
+### Prevention of Incorrect Recommendations
+The `Physical Agent` is architecturally restricted from accessing the Mental Health database. This isolation prevents the system from recommending a Psychologist for a purely physical injury.
 
-| Scenario | Standard AI (Risky) | Multi-Agent System (Safe) |
+| Scenario | Standard AI (High Risk) | Multi-Agent System (Safe) |
 | :--- | :--- | :--- |
-| **Input**: "I feel a heavy weight on my chest." | Might guess: "Heart attack" OR "Anxiety". Mixed probability. | **Triage Agent** detects "Anxiety" context -> Routes to **Mental Agent**. |
-| **Agent Action** | Scans all doctors. Might pick a Cardiologist due to keyword "chest". | **Mental Agent** ONLY scans Psychologists. It knows "weight on chest" = panic attack symptom in its domain. |
-| **Inquiry** | Generic: "Does it hurt?" | Domain-Specific: "Are you feeling anxious right now?" (Ignores physical pain protocols). |
-| **Outcome** | **Risk**: Sends user to ER (costly) or wrong specialist. | **Result**: Matches with a Psychologist specialized in Panic Disorders. |
+| **Input**: "I feel a heavy weight on my chest." | Ambiguous interpretation: "Heart attack" vs "Anxiety". High probability of error. | **Triage Agent** detects "Anxiety" context -> Routes to **Mental Agent**. |
+| **Agent Action** | Scans entire provider list. May select a Cardiologist based on keyword "chest". | **Mental Agent** ONLY scans Psychologists. It interprets "weight on chest" as a potential anxiety symptom within its domain. |
+| **Inquiry** | Generic: "Does it hurt?" | Domain-Specific: "Are you feeling anxious right now?" (Excludes physical pain protocols). |
+| **Outcome** | **Risk**: Referral to incorrect facility (ER) or specialist. | **Result**: Matches with a Psychologist specialized in Panic Disorders. |
 
-## 5. Domain-Specific Questioning (The "Blinkered" Approach)
+## 5. Domain-Specific Questioning
 
-Each agent wears "blinders" that force it to focus ONLY on its specialty. This keeps the conversation short and relevant.
+Each agent operates within strict semantic boundaries ("blinders") to ensure focus. This maintains conversation relevance and efficiency.
 
-- **Physical Agent Blinders**: It ignores words like "sad", "hopeless", or "funding". It interprets "pain" strictly as a physical sensation (0-10 scale).
-- **Mental Agent Blinders**: It ignores words like "fracture" or "swelling". It interprets "pain" as emotional distress.
-- **NDIS Agent Blinders**: It ignores clinical symptoms entirely. It focuses purely on **administrative eligibility** and **support categories**.
+- **Physical Agent Constraints**: Filters out emotive descriptors unrelated to pain intensity. Interprets "pain" strictly as a physical sensation (rated 0-10).
+- **Mental Agent Constraints**: Filters out acute physical trauma terminology. Interprets "pain" as emotional distress.
+- **NDIS Agent Constraints**: Excludes clinical diagnostic workflows. Focuses strictly on **administrative eligibility** and **support categories**.
 
 ### The "Funnel" Effect
-By narrowing the focus immediately, we prevent the user from being bombarded with 20 irrelevant questions.
-- A user with a sprained ankle is **never** asked "How is your mood?"
-- A user with depression is **never** asked "Rate your pain from 1-5."
+By narrowing the focus immediately, we prevent irrelevant questioning:
+- A user with a sprained ankle is **never** queried about their emotional state.
+- A user with depression is **never** asked to rate physical pain on a numeric scale.
 
-## 6. Benefit of This Approach
+## 6. Strategic Benefits
 
-1.  **Efficiency**: The "Physical Agent" never wastes resources scanning 5,000 psychologists. It only searches the 500 physiotherapists.
-2.  **Contextual Accuracy**: The "Mental Agent" knows that "pressure" usually means emotional stress, whereas the "Physical Agent" knows "pressure" might mean nerve compression.
-3.  **Scalability**: We can add a "Nutrition Agent" later without breaking the existing logic—just add a new spoke to the hub.
+1.  **Efficiency**: The "Physical Agent" does not consume resources scanning irrelevant datasets (e.g., Psychology records). It searches only the relevant subset of Physiotherapists.
+2.  **Contextual Accuracy**: The "Mental Agent" interprets keywords like "pressure" as emotional stress, whereas the "Physical Agent" correctly interprets "pressure" as potential nerve compression.
+3.  **Scalability**: New agents (e.g., a "Nutrition Agent") can be integrated as additional spokes without disrupting existing logic.
