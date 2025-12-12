@@ -24,51 +24,86 @@ const FocusView: React.FC<FocusViewProps> = ({ messages, onSend, isLoading, show
     const isLikelyPhysical = lowerText.includes("scale") || showSlider;
 
     // 2. Mental (Feelings): Asks for specific feeling/word AND is NOT a duration/trigger question
-    const isDurationOrTrigger = lowerText.includes("how long") || lowerText.includes("while") || lowerText.includes("when") || lowerText.includes("time") || lowerText.includes("history") || lowerText.includes("trigger") || lowerText.includes("cause");
+    const isDurationOrTrigger = lowerText.includes("how long") || lowerText.includes("while") || lowerText.includes("when") || lowerText.includes("time") || lowerText.includes("history") || lowerText.includes("trigger") || lowerText.includes("cause") || lowerText.includes("causing") || lowerText.includes("explain") || lowerText.includes("tell me");
 
     // Stricter check: Must ask "How ... feel" or "one word" or "describe ... feeling"
-    const asksAboutFeeling = (lowerText.includes("how") && lowerText.includes("feel")) || lowerText.includes("one word") || lowerText.includes("describe");
+    // Also ensuring it's asking about the USER'S feelings directly, not "how x contributes to feelings"
+    const asksAboutFeeling = (lowerText.includes("how") && lowerText.includes("you feel")) || lowerText.includes("one word") || lowerText.includes("describe");
 
     const isLikelyMental = !isDurationOrTrigger && !isLikelyPhysical && asksAboutFeeling;
 
     // Mental Health "Feeling" Options
     const feelingOptions = ["Anxious 😰", "Overwhelmed 🤯", "Sad 😢", "Tired 😴", "Angry 😠", "Confused 😕", "Okay 😐", "Hopeful 🙂"];
 
-    const handleVoiceInput = () => {
+    const recognitionRef = React.useRef<any>(null);
+
+    const toggleVoiceInput = () => {
+        if (isListening) {
+            if (recognitionRef.current) {
+                recognitionRef.current.stop(); // stop() allows pending audio to be processed
+                // Don't set null immediately, let onend handle cleanup
+            }
+            // setIsListening(false); // Let onend handle this to keep UI active while processing
+            return;
+        }
+
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
             const recognition = new SpeechRecognition();
 
-            recognition.continuous = false;
-            recognition.interimResults = false;
+            recognition.continuous = true;
+            recognition.interimResults = true;
             recognition.lang = 'en-US';
 
             recognition.onstart = () => {
                 setIsListening(true);
             };
 
+            let finalTranscript = '';
+
             recognition.onresult = (event: any) => {
-                const transcript = event.results[0][0].transcript;
-                setInput((prev) => prev + (prev ? ' ' : '') + transcript);
-                setIsListening(false);
+                let interimTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                        setInput(prev => {
+                            const trimmed = event.results[i][0].transcript.trim();
+                            if (prev.endsWith(trimmed)) return prev;
+                            return prev + (prev ? ' ' : '') + trimmed;
+                        });
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
             };
 
             recognition.onerror = (event: any) => {
+                if (event.error === 'no-speech') return;
+
+                // If aborted, don't show error
+                if (event.error === 'aborted') {
+                    setIsListening(false);
+                    return;
+                }
+
                 console.error('Speech recognition error', event.error);
                 if (event.error === 'network') {
                     alert('Voice input failed. This often happens if:\n1. The browser blocks Google Speech services (e.g. Brave/Vivaldi).\n2. A firewall/extension is blocking the connection.\n3. The internet connection is unstable.');
                 } else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
                     alert('Microphone access blocked. Please allow microphone permissions.');
-                } else {
-                    alert(`Voice input error: ${event.error}`);
                 }
-                setIsListening(false);
+
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    setIsListening(false);
+                }
             };
 
             recognition.onend = () => {
                 setIsListening(false);
             };
 
+            recognitionRef.current = recognition;
             recognition.start();
         } else {
             alert("Your browser does not support voice input.");
@@ -187,15 +222,19 @@ const FocusView: React.FC<FocusViewProps> = ({ messages, onSend, isLoading, show
                             <div className="absolute right-0 bottom-4 md:bottom-2 flex gap-2">
                                 <button
                                     type="button"
-                                    onClick={handleVoiceInput}
-                                    disabled={isLoading || isListening}
+                                    onClick={toggleVoiceInput}
+                                    disabled={isLoading}
                                     className={`p-4 rounded-2xl transition-all shadow-lg hover:scale-105 active:scale-95 flex items-center justify-center ${isListening
                                         ? 'bg-red-500 text-white animate-pulse shadow-red-500/30'
                                         : 'bg-white text-slate-400 hover:text-[--color-primary] border border-slate-200'
                                         }`}
-                                    title="Voice Input"
+                                    title={isListening ? "Stop Listening" : "Start Voice Input"}
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="23" /><line x1="8" x2="16" y1="23" y2="23" /></svg>
+                                    {isListening ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+                                    ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="23" /><line x1="8" x2="16" y1="23" y2="23" /></svg>
+                                    )}
                                 </button>
 
                                 <button
